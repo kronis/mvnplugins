@@ -16,16 +16,25 @@
  */
 package org.fusesource.mvnplugins.graph;
 
-import org.apache.maven.shared.dependency.tree.DependencyNode;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugin.logging.Log;
-import org.apache.maven.artifact.Artifact;
-import org.codehaus.plexus.util.cli.*;
-import org.codehaus.plexus.util.FileUtils;
-
-import java.util.*;
 import java.io.File;
 import java.io.PrintStream;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Set;
+
+import org.apache.maven.artifact.Artifact;
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.shared.dependency.tree.DependencyNode;
+import org.codehaus.plexus.util.FileUtils;
+import org.codehaus.plexus.util.cli.CommandLineException;
+import org.codehaus.plexus.util.cli.CommandLineUtils;
+import org.codehaus.plexus.util.cli.Commandline;
+import org.codehaus.plexus.util.cli.DefaultConsumer;
 
 /**
  * @author <a href="http://hiramchirino.com">Hiram Chirino</a>
@@ -135,7 +144,7 @@ public class DependencyVisualizer {
 
         public String getFillColor() {
             if( roots > 0 ) {
-                return "#dddddd"; 
+                return "#DDFFDD";
             }
             return "white";
         }
@@ -254,7 +263,7 @@ public class DependencyVisualizer {
                 return true;
             if(hideScopes.contains(scope) )
                 return true;
-            
+
             final int state = dependencyNode.getState();
             if(hideOmitted && (state==DependencyNode.OMITTED_FOR_CONFLICT || state==DependencyNode.OMITTED_FOR_CYCLE) ) {
                 return true;
@@ -354,6 +363,9 @@ public class DependencyVisualizer {
         }
         if (dn.hasChildren()) {
             for (DependencyNode c : (List<DependencyNode>) dn.getChildren()) {
+                if (!c.getArtifact().getGroupId().startsWith("no.tine")) {
+                    continue;
+                }
                 Node child = add(c, false);
                 Edge edge = new Edge(parent, child, c);
                 add(edge);

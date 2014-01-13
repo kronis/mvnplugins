@@ -1,6 +1,8 @@
 .classpath
 .project
 .settings
+.idea/
+maven-graph-plugin/.idea/
 *.iml
 *.ipr
 *.iws
