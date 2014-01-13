@@ -57,6 +57,7 @@ public class DependencyVisualizer {
     Log log;
     boolean cascade;
     String direction="TB";
+    String artifactGroupId;
 
     private class Node {
         private final String id;
@@ -144,7 +145,7 @@ public class DependencyVisualizer {
 
         public String getFillColor() {
             if( roots > 0 ) {
-                return "#DDFFDD";
+                return "#dddddd"; 
             }
             return "white";
         }
@@ -263,7 +264,7 @@ public class DependencyVisualizer {
                 return true;
             if(hideScopes.contains(scope) )
                 return true;
-
+            
             final int state = dependencyNode.getState();
             if(hideOmitted && (state==DependencyNode.OMITTED_FOR_CONFLICT || state==DependencyNode.OMITTED_FOR_CYCLE) ) {
                 return true;
@@ -363,7 +364,7 @@ public class DependencyVisualizer {
         }
         if (dn.hasChildren()) {
             for (DependencyNode c : (List<DependencyNode>) dn.getChildren()) {
-                if (!c.getArtifact().getGroupId().startsWith("no.tine")) {
+                if (artifactGroupId != "" && !c.getArtifact().getGroupId().startsWith(artifactGroupId)) {
                     continue;
                 }
                 Node child = add(c, false);

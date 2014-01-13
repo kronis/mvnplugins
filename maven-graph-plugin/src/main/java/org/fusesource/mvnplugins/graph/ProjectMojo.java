@@ -1,13 +1,13 @@
 /**
  * Copyright (C) 2009 Progress Software, Inc.
  * http://fusesource.com
- * 
+ *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
+ *
  *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ *
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -19,11 +19,7 @@ package org.fusesource.mvnplugins.graph;
 import java.io.File;
 import java.util.ArrayList;
 
-import org.apache.maven.artifact.factory.ArtifactFactory;
-import org.apache.maven.artifact.metadata.ArtifactMetadataSource;
 import org.apache.maven.artifact.repository.ArtifactRepository;
-import org.apache.maven.artifact.resolver.ArtifactCollector;
-import org.apache.maven.artifact.resolver.ArtifactResolver;
 import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.project.MavenProject;
@@ -61,36 +57,6 @@ public class ProjectMojo extends AbstractMojo {
 
     /**
      * @required
-     * @component
-     * @since 1.0
-     */
-    protected ArtifactResolver artifactResolver;
-
-    /**
-     * @required
-     * @readonly
-     * @component
-     * @since 1.0
-     */
-    protected ArtifactFactory artifactFactory;
-
-    /**
-     * @required
-     * @readonly
-     * @component
-     * @since 1.0
-     */
-    protected ArtifactMetadataSource artifactMetadataSource;
-
-    /**
-     * @required
-     * @readonly
-     * @component
-     */
-    protected ArtifactCollector artifactCollector;
-
-    /**
-     * @required
      * @readonly
      * @component
      * @since 1.0
@@ -101,6 +67,7 @@ public class ProjectMojo extends AbstractMojo {
      * The file the diagram will be written to.  Must use a file extension that the dot command supports or just the
      * '.dot' extension.
      * <br/>
+     *
      * @parameter default-value="${project.build.directory}/project-graph.png" expression="${graph.target}"
      */
     protected File target;
@@ -109,6 +76,7 @@ public class ProjectMojo extends AbstractMojo {
      * If set to true, omitted dependencies will not be drawn.  Dependencies are marked
      * as omitted if it would result in a resolution conflict.
      * <br/>
+     *
      * @parameter default-value="true" expression="${hide-omitted}"
      */
     protected boolean hideOmitted;
@@ -116,6 +84,7 @@ public class ProjectMojo extends AbstractMojo {
     /**
      * If set to true optional dependencies are not drawn.
      * <br/>
+     *
      * @parameter default-value="false" expression="${hide-optional}"
      */
     protected boolean hideOptional;
@@ -123,6 +92,7 @@ public class ProjectMojo extends AbstractMojo {
     /**
      * If set to true if dependencies external to the reactor project should be hidden.
      * <br/>
+     *
      * @parameter default-value="false" expression="${hide-external}"
      */
     protected boolean hideExternal;
@@ -130,6 +100,7 @@ public class ProjectMojo extends AbstractMojo {
     /**
      * If set to true pom dependencies are not drawn.
      * <br/>
+     *
      * @parameter default-value="true" expression="${hide-poms}"
      */
     protected boolean hidePoms;
@@ -140,6 +111,7 @@ public class ProjectMojo extends AbstractMojo {
      * <br/>
      * For example: <code>runtime,test</code>
      * <br/>
+     *
      * @parameter expression="${hide-scope}"
      */
     protected String hideScopes;
@@ -148,6 +120,7 @@ public class ProjectMojo extends AbstractMojo {
      * If set to true then dependencies not explicitly defined in the projects
      * pom will not be drawn.
      * <br/>
+     *
      * @parameter default-value="false" expression="${hide-transitive}"
      */
     protected boolean hideTransitive;
@@ -155,6 +128,7 @@ public class ProjectMojo extends AbstractMojo {
     /**
      * If set to true then the version label will not be drawn.
      * <br/>
+     *
      * @parameter default-value="false" expression="${hide-version}"
      */
     protected boolean hideVersion;
@@ -162,6 +136,7 @@ public class ProjectMojo extends AbstractMojo {
     /**
      * If set to true then the group id label will not be drawn.
      * <br/>
+     *
      * @parameter default-value="false" expression="${hide-group-id}"
      */
     protected boolean hideGroupId;
@@ -169,6 +144,7 @@ public class ProjectMojo extends AbstractMojo {
     /**
      * If set to true then the module type label will not be drawn.
      * <br/>
+     *
      * @parameter default-value="false" expression="${hide-type}"
      */
     protected boolean hideType;
@@ -176,6 +152,7 @@ public class ProjectMojo extends AbstractMojo {
     /**
      * If set to true then the intermediate dot file will not be deleted.
      * <br/>
+     *
      * @parameter default-value="false" expression="${keep-dot}"
      */
     protected boolean keepDot;
@@ -183,15 +160,17 @@ public class ProjectMojo extends AbstractMojo {
     /**
      * The label for the graph.
      * <br/>
+     *
      * @parameter default-value="Dependency Graph for ${project.name}" expression="${graph.label}"
      */
     protected String label;
 
     /**
      * If true then the 'test scope' and 'optional' attributes are cascaded
-     * down to the dependencies of the original node. 
-     *
+     * down to the dependencies of the original node.
+     * <p/>
      * <br/>
+     *
      * @parameter default-value="true" expression="${graph.cascade}"
      */
     protected boolean cascade;
@@ -203,11 +182,19 @@ public class ProjectMojo extends AbstractMojo {
      * <code>TB LR BT RL <code>
      * <br/>
      * top to bottom, from left to right, from bottom to top, and from right to left, respectively
-     *
+     * <p/>
      * <br/>
+     *
      * @parameter default-value="TB" expression="${graph.direction}"
      */
     protected String direction;
+
+    /**
+     * Only include packages that starts with following groupId
+     *
+     * @parameter default-value="" expression="${artifact-groupId}
+     */
+    protected String artifactGroupId;
 
     public void execute() throws MojoExecutionException {
         try {
@@ -225,6 +212,7 @@ public class ProjectMojo extends AbstractMojo {
             visualizer.label = label;
             visualizer.hideTransitive = hideTransitive;
             visualizer.log = getLog();
+            visualizer.artifactGroupId = artifactGroupId;
 
             if (hideScopes != null) {
                 for (String scope : hideScopes.split(",")) {
