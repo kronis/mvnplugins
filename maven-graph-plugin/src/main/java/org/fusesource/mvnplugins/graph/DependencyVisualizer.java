@@ -1,13 +1,13 @@
 /**
  * Copyright (C) 2009 Progress Software, Inc.
  * http://fusesource.com
- * 
+ * <p>
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
  * You may obtain a copy of the License at
- * 
- *    http://www.apache.org/licenses/LICENSE-2.0
- * 
+ * <p>
+ * http://www.apache.org/licenses/LICENSE-2.0
+ * <p>
  * Unless required by applicable law or agreed to in writing, software
  * distributed under the License is distributed on an "AS IS" BASIS,
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
@@ -15,16 +15,6 @@
  * limitations under the License.
  */
 package org.fusesource.mvnplugins.graph;
-
-import java.io.File;
-import java.io.PrintStream;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Set;
 
 import org.apache.maven.artifact.Artifact;
 import org.apache.maven.plugin.MojoExecutionException;
@@ -35,6 +25,10 @@ import org.codehaus.plexus.util.cli.CommandLineException;
 import org.codehaus.plexus.util.cli.CommandLineUtils;
 import org.codehaus.plexus.util.cli.Commandline;
 import org.codehaus.plexus.util.cli.DefaultConsumer;
+
+import java.io.File;
+import java.io.PrintStream;
+import java.util.*;
 
 /**
  * @author <a href="http://hiramchirino.com">Hiram Chirino</a>
@@ -56,8 +50,11 @@ public class DependencyVisualizer {
     boolean hideTransitive;
     Log log;
     boolean cascade;
-    String direction="TB";
+    String direction = "TB";
     String artifactGroupId;
+    private Map<String, String> artifactIds = new HashMap<>();
+    private List<String> colors = Arrays.asList("#DDFFFF", "#FFDDFF", "#FFFFDD", "#DDDDFF", "#DDFFDD", "#FFDDDD", "#DDDDDD", "#FF9AA2", "#FFB7B2", "#FFDAC1", "#E2F0CB", "#B5EAD7", "#C7CEEA");
+    private int colorsIndex = 0;
 
     private class Node {
         private final String id;
@@ -87,10 +84,10 @@ public class DependencyVisualizer {
         }
 
         public boolean isHidden() {
-            if ( hidePoms && isExclusivelyType("pom") ) {
+            if (hidePoms && isExclusivelyType("pom")) {
                 return true;
             }
-            if( hideExternal && roots == 0 ) {
+            if (hideExternal && roots == 0) {
                 return true;
             }
             return false;
@@ -103,24 +100,24 @@ public class DependencyVisualizer {
         public String getLabel() {
             final Artifact a = artifact;
             StringBuilder sb = new StringBuilder();
-            if( !hideGroupId ) {
-                sb.append( a.getGroupId() + "\\n");
+            if (!hideGroupId) {
+                sb.append(a.getGroupId() + "\\n");
             }
-            sb.append( a.getArtifactId());
-            if( !hideType ) {
+            sb.append(a.getArtifactId());
+            if (!hideType) {
                 if (!isExclusivelyType("jar")) {
                     sb.append("\\n");
-                    boolean first=true;
+                    boolean first = true;
                     for (String type : getTypes()) {
-                        if( !first  ) {
+                        if (!first) {
                             sb.append(" | ");
                         }
-                        first=false;
+                        first = false;
                         sb.append(type);
                     }
                 }
             }
-            if( !hideVersion ) {
+            if (!hideVersion) {
                 sb.append("\\n" + a.getVersion());
             }
             return sb.toString();
@@ -140,15 +137,27 @@ public class DependencyVisualizer {
         }
 
         private boolean isScope(String scope) {
-            return roots==0 && !parents.isEmpty() && allMatchScope(parents, scope);
+            return roots == 0 && !parents.isEmpty() && allMatchScope(parents, scope);
         }
 
-        public String getFillColor() {
-            if( roots > 0 ) {
-                return "#dddddd"; 
+        public String getFillColor(final String artifactId) {
+            if (artifactIds.containsKey(artifactId)) {
+                return artifactIds.get(artifactId);
             }
-            return "white";
+
+            String color;
+            if (colorsIndex != colors.size()) {
+                color = colors.get(colorsIndex++);
+            } else {
+                Random random = new Random();
+                int nextInt = random.nextInt(0xffffff + 1);
+                color = String.format("#%06x", nextInt);
+            }
+            artifactIds.put(artifactId, color);
+
+            return color;
         }
+
         public String getFontColor() {
             return getColor();
         }
@@ -160,14 +169,14 @@ public class DependencyVisualizer {
         }
 
         public double getFontSize() {
-            if( roots > 0 ) {
+            if (roots > 0) {
                 return 14;
             }
             return 8;
         }
 
         public boolean isOptional() {
-            return roots==0 && !parents.isEmpty() && allMatchOptional(parents, true);
+            return roots == 0 && !parents.isEmpty() && allMatchOptional(parents, true);
         }
 
 
@@ -179,6 +188,7 @@ public class DependencyVisualizer {
             }
             return true;
         }
+
         private boolean allMatchOptional(ArrayList<Edge> edges, boolean value) {
             for (Edge e : edges) {
                 if (e.optional != value) {
@@ -190,24 +200,24 @@ public class DependencyVisualizer {
 
         private Set<String> getTypes() {
             LinkedHashSet<String> rc = new LinkedHashSet<String>();
-            rc.add(artifact.getType() + (artifact.getClassifier()==null? "" : (":" + artifact.getClassifier())));
+            rc.add(artifact.getType() + (artifact.getClassifier() == null ? "" : (":" + artifact.getClassifier())));
             for (Edge e : parents) {
                 Artifact artifact = e.dependencyNode.getArtifact();
-                rc.add(artifact.getType() + (artifact.getClassifier()==null? "" : (":" + artifact.getClassifier())));
+                rc.add(artifact.getType() + (artifact.getClassifier() == null ? "" : (":" + artifact.getClassifier())));
             }
             return rc;
         }
 
         private boolean isExclusivelyType(String value) {
             Set<String> types = getTypes();
-            return types.size()==1 && types.contains(value); 
+            return types.size() == 1 && types.contains(value);
         }
 
         public int getRecursiveChildCount() {
             int rc = children.size();
             for (Edge child : children) {
                 int t = child.getRecursiveChildCount();
-                if( t > rc ) {
+                if (t > rc) {
                     rc = t;
                 }
             }
@@ -230,6 +240,7 @@ public class DependencyVisualizer {
             this.scope = dependencyNode.getArtifact().getScope();
             this.optional = dependencyNode.getArtifact().isOptional();
         }
+
         public Edge(Edge edge) {
             this.parent = edge.parent;
             this.child = edge.child;
@@ -239,34 +250,34 @@ public class DependencyVisualizer {
         }
 
         public Edge optional(boolean optional) {
-            if ( this.optional == optional) {
+            if (this.optional == optional) {
                 return this;
             }
-            Edge rc =  new Edge(this);
+            Edge rc = new Edge(this);
             rc.optional = optional;
             return rc;
         }
-        
+
         public Edge scope(String scope) {
-            if ( this.scope.equals(scope) ) {
+            if (this.scope.equals(scope)) {
                 return this;
             }
-            Edge rc =  new Edge(this);
+            Edge rc = new Edge(this);
             rc.scope = scope;
             return rc;
         }
 
         public boolean isHidden() {
-            if( hideTransitive && dependencyNode.getParent().getParent()!=null ) {
+            if (hideTransitive && dependencyNode.getParent().getParent() != null) {
                 return true;
             }
-            if(hideOptional && optional)
+            if (hideOptional && optional)
                 return true;
-            if(hideScopes.contains(scope) )
+            if (hideScopes.contains(scope))
                 return true;
-            
+
             final int state = dependencyNode.getState();
-            if(hideOmitted && (state==DependencyNode.OMITTED_FOR_CONFLICT || state==DependencyNode.OMITTED_FOR_CYCLE) ) {
+            if (hideOmitted && (state == DependencyNode.OMITTED_FOR_CONFLICT || state == DependencyNode.OMITTED_FOR_CYCLE)) {
                 return true;
             }
             return false;
@@ -277,7 +288,7 @@ public class DependencyVisualizer {
         }
 
         public String getLineStyle() {
-            if( optional ) {
+            if (optional) {
                 return "dotted";
             }
             return "solid";
@@ -285,11 +296,11 @@ public class DependencyVisualizer {
 
         public String getLabel() {
             StringBuilder sb = new StringBuilder();
-            if ( !isScope("compile")) {
+            if (!isScope("compile")) {
                 sb.append(scope);
             }
-            if ( optional ) {
-                if( sb.length()!=0 ) {
+            if (optional) {
+                if (sb.length() != 0) {
                     sb.append(",");
                 }
                 sb.append("optional");
@@ -306,10 +317,10 @@ public class DependencyVisualizer {
 
         double getWeight() {
             double rc = 1 + getRecursiveChildCount();
-            if ( isScope("compile")) {
+            if (isScope("compile")) {
                 rc *= 2;
             }
-            if ( !optional ) {
+            if (!optional) {
                 rc *= 2;
             }
             return rc;
@@ -359,13 +370,25 @@ public class DependencyVisualizer {
 
     private Node add(DependencyNode dn, boolean root) {
         Node parent = getNode(dn);
-        if( root ) {
+        if (root) {
             parent.roots++;
+        }
+        List<String> split = new ArrayList<>();
+        if (artifactGroupId != null) {
+            if (artifactGroupId.contains(",")) {
+                split.addAll(Arrays.asList(artifactGroupId.split(",")));
+            } else {
+                split.add(artifactGroupId);
+            }
         }
         if (dn.hasChildren()) {
             for (DependencyNode c : (List<DependencyNode>) dn.getChildren()) {
-                if (artifactGroupId != "" && !c.getArtifact().getGroupId().startsWith(artifactGroupId)) {
-                    continue;
+                if (!split.isEmpty()) {
+                    if (split.stream().noneMatch(s -> c.getArtifact().getGroupId().startsWith(s))) {
+                        continue;
+                    }
+//                if (artifactGroupId != "" && !c.getArtifact().getGroupId().startsWith(artifactGroupId)) {
+                    //continue;
                 }
                 Node child = add(c, false);
                 Edge edge = new Edge(parent, child, c);
@@ -377,9 +400,9 @@ public class DependencyVisualizer {
 
     private Node getNode(DependencyNode dn) {
         Artifact artifact = dn.getArtifact();
-        String id = artifact.getGroupId()+":"+artifact.getArtifactId()+":"+artifact.getVersion();
-        if( artifact.getClassifier()!=null ) {
-            id += ":"+artifact.getClassifier();
+        String id = artifact.getGroupId() + ":" + artifact.getArtifactId() + ":" + artifact.getVersion();
+        if (artifact.getClassifier() != null) {
+            id += ":" + artifact.getClassifier();
         }
         Node node = nodes.get(id);
         if (node == null) {
@@ -417,36 +440,36 @@ public class DependencyVisualizer {
     public void export(File target) throws MojoExecutionException {
 
         // Drop nodes and edges which are hidden...
-        for (Node node : new ArrayList<Node>(nodes.values()) ) {
+        for (Node node : new ArrayList<Node>(nodes.values())) {
             if (node.isHidden()) {
-                log.debug("Dropping hidden node: "+node);
+                log.debug("Dropping hidden node: " + node);
                 remove(node);
             }
         }
-        for (Edge edge : new ArrayList<Edge>(edges) ) {
+        for (Edge edge : new ArrayList<Edge>(edges)) {
             if (edge.isHidden()) {
-                log.debug("Dropping hidden edge: "+edge);
+                log.debug("Dropping hidden edge: " + edge);
                 remove(edge);
             }
 
         }
 
-        if ( cascade ) {
+        if (cascade) {
             // Propagate the attributes down to the children.
 
             LinkedList<Node> ll = new LinkedList<Node>(nodes.values());
-            while( !ll.isEmpty() ) {
+            while (!ll.isEmpty()) {
                 // Optional propagates...
                 Node node = ll.removeFirst();
-                if( node.isOptional() )  {
+                if (node.isOptional()) {
                     for (Edge edge : new ArrayList<Edge>(node.children)) {
-                        if( !edge.optional ) {
+                        if (!edge.optional) {
                             remove(edge);
                             add(edge.optional(true));
 
                             // If a child filpped to optional.. then we need
                             // to enqueue so we process it's children
-                            if( edge.child.isOptional() ) {
+                            if (edge.child.isOptional()) {
                                 ll.addLast(edge.child);
                             }
                         }
@@ -454,15 +477,15 @@ public class DependencyVisualizer {
                 }
 
                 // scope propagates....
-                if( node.isScope("test") )  {
+                if (node.isScope("test")) {
                     for (Edge edge : new ArrayList<Edge>(node.children)) {
-                        if( !edge.isScope("test") ) {
+                        if (!edge.isScope("test")) {
                             remove(edge);
                             add(edge.scope("test"));
 
                             // If a child filpped to test.. then we need
                             // to enqueue so we process it's children
-                            if( edge.child.isScope("test") ) {
+                            if (edge.child.isScope("test")) {
                                 ll.addLast(edge.child);
                             }
                         }
@@ -472,26 +495,26 @@ public class DependencyVisualizer {
         }
 
         // Remove all the non root nodes that are disconnected.
-        for (Node node : new ArrayList<Node>(nodes.values()) ) {
-            if (node.parents.size()==0 && node.roots==0) {
-                log.debug("Dropping orphaned node: "+node);
+        for (Node node : new ArrayList<Node>(nodes.values())) {
+            if (node.parents.size() == 0 && node.roots == 0) {
+                log.debug("Dropping orphaned node: " + node);
                 remove(node);
             }
         }
 
         // Write the source file...
-        boolean convertDotFile=true;
+        boolean convertDotFile = true;
         File source = new File(target.getParentFile(), target.getName() + ".dot");
 
         // User might just be requesting a dot file..
-        if( target.getName().endsWith(".dot") ) {
+        if (target.getName().endsWith(".dot")) {
             convertDotFile = false;
             source = target;
         }
 
         PrintStream os = null;
         try {
-            log.debug("Exporting to: "+source);
+            log.debug("Exporting to: " + source);
             os = new PrintStream(source);
             DotExporter exporter = new DotExporter(os);
             exporter.export();
@@ -505,7 +528,7 @@ public class DependencyVisualizer {
         if (!convertDotFile) {
             return;
         }
-        
+
         try {
             Commandline commandline = new Commandline();
             try {
@@ -525,7 +548,7 @@ public class DependencyVisualizer {
                 throw new MojoExecutionException("Execution of the 'dot' command failed.  Perhaps it's not installed.  See: http://www.graphviz.org/");
             }
             log.debug("Graph generated. ");
-            if( !keepDot ) {
+            if (!keepDot) {
                 source.delete();
             }
 
@@ -544,16 +567,16 @@ public class DependencyVisualizer {
         }
 
         public void export() {
-        	
+
             String graphFont = "Serif";
             String nodeFont = "SanSerif";
-            
+
             String osName = System.getProperty("os.name", "NO OS NAME!!");
             if (osName.contains("Windows")) {
                 graphFont = "arial";
                 nodeFont = "arial";
             }
-        	
+
             p("digraph dependencies {").i(1);
             {
                 p("graph [").i(1);
@@ -564,9 +587,9 @@ public class DependencyVisualizer {
                     p("labeljust=l");
                     p("labelloc=t");
                     p("fontsize=18");
-                    p("fontname="+q(graphFont));
+                    p("fontname=" + q(graphFont));
                     p("ranksep=1");
-                    p("rankdir="+q(direction));
+                    p("rankdir=" + q(direction));
                     p("nodesep=.05");
 
                 }
@@ -574,14 +597,14 @@ public class DependencyVisualizer {
                 p("node [").i(1);
                 {
                     p("fontsize=8");
-                    p("fontname="+q(nodeFont));
+                    p("fontname=" + q(nodeFont));
                     p("shape=\"rectangle\"");
                 }
                 i(-1).p("];");
                 p("edge [").i(1);
                 {
                     p("fontsize=8");
-                    p("fontname="+q(nodeFont));
+                    p("fontname=" + q(nodeFont));
                 }
                 i(-1).p("];");
 
@@ -589,11 +612,11 @@ public class DependencyVisualizer {
                 for (Node node : nodes.values()) {
                     p(q(node.getId()) + " [").i(1);
                     {
-                        p("fontsize="+node.getFontSize());
+                        p("fontsize=" + node.getFontSize());
                         p("label=" + q(node.getLabel()));
                         p("color=" + q(node.getColor()));
                         p("fontcolor=" + q(node.getFontColor()));
-                        p("fillcolor=" + q(node.getFillColor()));
+                        p("fillcolor=" + q(node.getFillColor(node.artifact.getGroupId())));
                         p("style=" + q(node.getLineStyle()));
                     }
                     i(-1).p("];");
